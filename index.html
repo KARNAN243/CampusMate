@@ -1,74 +1,113 @@
-<div id="input-area">
-  <input type="text" id="command" placeholder="Type or speak your command...">
-  <button onclick="sendCommand()">Send</button>
-  <button onclick="startVoiceInput()">🎤</button>
-  <button onclick="toggleVoiceOutput()">🔊</button>
-</div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CampusMate Chatbot</title>
+  <style>
+    /* Add some basic styles for the page */
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f9f9f9;
+      padding: 20px;
+    }
+    #input-area {
+      margin-top: 20px;
+    }
+    #command {
+      width: 80%;
+      padding: 10px;
+      margin-right: 10px;
+    }
+    .message {
+      margin-bottom: 10px;
+    }
+    .user {
+      text-align: right;
+      font-weight: bold;
+    }
+    .bot {
+      text-align: left;
+    }
+  </style>
+</head>
+<body>
+  <h1>CampusMate Chatbot</h1>
+  <div id="messages"></div>
 
-<script>
-  let voiceEnabled = true;
+  <div id="input-area">
+    <input type="text" id="command" placeholder="Type or speak your command...">
+    <button onclick="sendCommand()">Send</button>
+    <button onclick="startVoiceInput()">🎤</button>
+    <button onclick="toggleVoiceOutput()">🔊</button>
+  </div>
 
-  async function sendCommand(input = null) {
-    const command = input || document.getElementById('command').value;
-    if (!command.trim()) return;
+  <script>
+    let voiceEnabled = true;
 
-    displayMessage(command, 'user');
+    async function sendCommand(input = null) {
+      const command = input || document.getElementById('command').value;
+      if (!command.trim()) return;
 
-    const response = await fetch('http://127.0.0.1:5000/command', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ command })
-    });
+      displayMessage(command, 'user');
 
-    const data = await response.json();
-    let reply = data.response || data.info || data.message || data.error || '';
+      const response = await fetch('http://127.0.0.1:5000/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command })
+      });
 
-    if (data.colleges || data.results) {
-      const list = (data.colleges || data.results).join(', ');
-      reply = `Results: ${list}`;
+      const data = await response.json();
+      let reply = data.response || data.info || data.message || data.error || '';
+
+      if (data.colleges || data.results) {
+        const list = (data.colleges || data.results).join(', ');
+        reply = `Results: ${list}`;
+      }
+
+      displayMessage(reply, 'bot');
+
+      if (voiceEnabled) speak(reply);
+      document.getElementById('command').value = '';
     }
 
-    displayMessage(reply, 'bot');
+    function displayMessage(message, sender) {
+      const messages = document.getElementById('messages');
+      const div = document.createElement('div');
+      div.className = `message ${sender}`;
+      div.innerText = message;
+      messages.appendChild(div);
+      messages.scrollTop = messages.scrollHeight;
+    }
 
-    if (voiceEnabled) speak(reply);
-    document.getElementById('command').value = '';
-  }
+    function speak(text) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      speechSynthesis.speak(utterance);
+    }
 
-  function displayMessage(message, sender) {
-    const messages = document.getElementById('messages');
-    const div = document.createElement('div');
-    div.className = `message ${sender}`;
-    div.innerText = message;
-    messages.appendChild(div);
-    messages.scrollTop = messages.scrollHeight;
-  }
+    function toggleVoiceOutput() {
+      voiceEnabled = !voiceEnabled;
+      alert(voiceEnabled ? "Voice output enabled" : "Voice output disabled");
+    }
 
-  function speak(text) {
-    const utterance = new SpeechSynthesisUtterance(text);
-    speechSynthesis.speak(utterance);
-  }
+    function startVoiceInput() {
+      const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      recognition.lang = 'en-IN';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
 
-  function toggleVoiceOutput() {
-    voiceEnabled = !voiceEnabled;
-    alert(voiceEnabled ? "Voice output enabled" : "Voice output disabled");
-  }
+      recognition.start();
 
-  function startVoiceInput() {
-    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.lang = 'en-IN';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
+      recognition.onresult = function(event) {
+        const voiceText = event.results[0][0].transcript;
+        document.getElementById('command').value = voiceText;
+        sendCommand(voiceText);
+      };
 
-    recognition.start();
-
-    recognition.onresult = function(event) {
-      const voiceText = event.results[0][0].transcript;
-      document.getElementById('command').value = voiceText;
-      sendCommand(voiceText);
-    };
-
-    recognition.onerror = function(event) {
-      alert('Speech recognition error: ' + event.error);
-    };
-  }
-</script>
+      recognition.onerror = function(event) {
+        alert('Speech recognition error: ' + event.error);
+      };
+    }
+  </script>
+</body>
+</html>
