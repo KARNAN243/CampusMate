@@ -1,0 +1,74 @@
+<div id="input-area">
+  <input type="text" id="command" placeholder="Type or speak your command...">
+  <button onclick="sendCommand()">Send</button>
+  <button onclick="startVoiceInput()">🎤</button>
+  <button onclick="toggleVoiceOutput()">🔊</button>
+</div>
+
+<script>
+  let voiceEnabled = true;
+
+  async function sendCommand(input = null) {
+    const command = input || document.getElementById('command').value;
+    if (!command.trim()) return;
+
+    displayMessage(command, 'user');
+
+    const response = await fetch('http://127.0.0.1:5000/command', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ command })
+    });
+
+    const data = await response.json();
+    let reply = data.response || data.info || data.message || data.error || '';
+
+    if (data.colleges || data.results) {
+      const list = (data.colleges || data.results).join(', ');
+      reply = `Results: ${list}`;
+    }
+
+    displayMessage(reply, 'bot');
+
+    if (voiceEnabled) speak(reply);
+    document.getElementById('command').value = '';
+  }
+
+  function displayMessage(message, sender) {
+    const messages = document.getElementById('messages');
+    const div = document.createElement('div');
+    div.className = `message ${sender}`;
+    div.innerText = message;
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  function speak(text) {
+    const utterance = new SpeechSynthesisUtterance(text);
+    speechSynthesis.speak(utterance);
+  }
+
+  function toggleVoiceOutput() {
+    voiceEnabled = !voiceEnabled;
+    alert(voiceEnabled ? "Voice output enabled" : "Voice output disabled");
+  }
+
+  function startVoiceInput() {
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = 'en-IN';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.start();
+
+    recognition.onresult = function(event) {
+      const voiceText = event.results[0][0].transcript;
+      document.getElementById('command').value = voiceText;
+      sendCommand(voiceText);
+    };
+
+    recognition.onerror = function(event) {
+      alert('Speech recognition error: ' + event.error);
+    };
+  }
+</script>
